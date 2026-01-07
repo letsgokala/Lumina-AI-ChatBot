@@ -2,12 +2,21 @@ import React from 'react';
 
 export default function App() {
   return (
-    <main className="app-shell">
-      <section className="hero-card">
-        <p className="eyebrow">Lumina AI Workspace</p>
-        <h1>Start building your AI chat experience.</h1>
+    <main className="workspace-shell">
+      <aside className="workspace-sidebar">
+        <p className="eyebrow">Lumina</p>
+        <h2>Sessions</h2>
+        <div className="placeholder-stack">
+          <div className="placeholder-line short" />
+          <div className="placeholder-line" />
+          <div className="placeholder-line" />
+        </div>
+      </aside>
+      <section className="workspace-main">
+        <p className="eyebrow">Assistant</p>
+        <h1>Prototype a modern AI workspace.</h1>
         <p className="subtitle">
-          A Vite + React starter for experimenting with a polished assistant UI.
+          The foundation now includes a two-column layout for conversation history and a focused chat surface.
         </p>
       </section>
     </main>
