@@ -3,6 +3,7 @@ import { PanelLeftOpen, Sparkles } from 'lucide-react';
 import { useChatStore } from '../store/useChatStore';
 import { ChatInput } from './ChatInput';
 import { MessageBubble } from './MessageBubble';
+import { generateChatResponse } from '../services/gemini';
 
 export const ChatWindow = () => {
   const {
@@ -13,24 +14,43 @@ export const ChatWindow = () => {
     createNewSession,
     addMessage,
   } = useChatStore();
+  const [isLoading, setIsLoading] = React.useState(false);
   const currentSession = sessions.find((session) => session.id === currentSessionId);
 
-  const handleSend = (content: string) => {
+  const handleSend = async (content: string) => {
     const sessionId = currentSessionId || createNewSession();
+    const nextMessages = [
+      ...(sessions.find((session) => session.id === sessionId)?.messages || []),
+      {
+        id: crypto.randomUUID(),
+        role: 'user' as const,
+        content,
+        timestamp: Date.now(),
+      },
+    ];
 
-    addMessage(sessionId, {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content,
-      timestamp: Date.now(),
-    });
+    addMessage(sessionId, nextMessages[nextMessages.length - 1]);
+    setIsLoading(true);
 
-    addMessage(sessionId, {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: 'Assistant integration is next on the roadmap.',
-      timestamp: Date.now(),
-    });
+    try {
+      const assistantReply = await generateChatResponse(nextMessages);
+      addMessage(sessionId, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: assistantReply,
+        timestamp: Date.now(),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to generate a response.';
+      addMessage(sessionId, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `Error: ${message}`,
+        timestamp: Date.now(),
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -62,7 +82,7 @@ export const ChatWindow = () => {
         </div>
       )}
 
-      <ChatInput onSend={handleSend} />
+      <ChatInput onSend={handleSend} isLoading={isLoading} />
     </section>
   );
 };

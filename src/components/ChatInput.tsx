@@ -3,13 +3,14 @@ import { ArrowUp } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (content: string) => void;
+  isLoading?: boolean;
 }
 
-export const ChatInput = ({ onSend }: ChatInputProps) => {
+export const ChatInput = ({ onSend, isLoading = false }: ChatInputProps) => {
   const [content, setContent] = useState('');
 
   const handleSend = () => {
-    if (!content.trim()) {
+    if (!content.trim() || isLoading) {
       return;
     }
 
