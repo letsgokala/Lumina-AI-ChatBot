@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { ChatSession, Message } from '../types/chat';
 
 interface ChatState {
@@ -10,55 +11,78 @@ interface ChatState {
   setCurrentSession: (id: string) => void;
   addMessage: (sessionId: string, message: Message) => void;
   deleteSession: (id: string) => void;
+  updateSessionTitle: (id: string, title: string) => void;
   clearAllSessions: () => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
-  sessions: [],
-  currentSessionId: null,
-  isSidebarOpen: true,
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set) => ({
+      sessions: [],
+      currentSessionId: null,
+      isSidebarOpen: true,
 
-  setSidebarOpen: (open) => set({ isSidebarOpen: open }),
+      setSidebarOpen: (open) => set({ isSidebarOpen: open }),
 
-  createNewSession: () => {
-    const newSession: ChatSession = {
-      id: crypto.randomUUID(),
-      title: 'New Chat',
-      messages: [],
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
+      createNewSession: () => {
+        const newSession: ChatSession = {
+          id: crypto.randomUUID(),
+          title: 'New Chat',
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
 
-    set((state) => ({
-      sessions: [newSession, ...state.sessions],
-      currentSessionId: newSession.id,
-    }));
+        set((state) => ({
+          sessions: [newSession, ...state.sessions],
+          currentSessionId: newSession.id,
+        }));
 
-    return newSession.id;
-  },
+        return newSession.id;
+      },
 
-  setCurrentSession: (id) => set({ currentSessionId: id }),
+      setCurrentSession: (id) => set({ currentSessionId: id }),
 
-  addMessage: (sessionId, message) => {
-    set((state) => ({
-      sessions: state.sessions.map((session) =>
-        session.id === sessionId
-          ? {
-              ...session,
-              messages: [...session.messages, message],
-              updatedAt: Date.now(),
-            }
-          : session
-      ),
-    }));
-  },
+      addMessage: (sessionId, message) => {
+        set((state) => ({
+          sessions: state.sessions.map((session) =>
+            session.id === sessionId
+              ? {
+                  ...session,
+                  messages: [...session.messages, message],
+                  updatedAt: Date.now(),
+                  title:
+                    session.messages.length === 0 && message.role === 'user'
+                      ? message.content.slice(0, 28) + (message.content.length > 28 ? '...' : '')
+                      : session.title,
+                }
+              : session
+          ),
+        }));
+      },
 
-  deleteSession: (id) => {
-    set((state) => ({
-      sessions: state.sessions.filter((session) => session.id !== id),
-      currentSessionId: state.currentSessionId === id ? null : state.currentSessionId,
-    }));
-  },
+      deleteSession: (id) => {
+        set((state) => {
+          const sessions = state.sessions.filter((session) => session.id !== id);
+          return {
+            sessions,
+            currentSessionId: state.currentSessionId === id ? sessions[0]?.id || null : state.currentSessionId,
+          };
+        });
+      },
 
-  clearAllSessions: () => set({ sessions: [], currentSessionId: null }),
-}));
+      updateSessionTitle: (id, title) => {
+        set((state) => ({
+          sessions: state.sessions.map((session) =>
+            session.id === id ? { ...session, title, updatedAt: Date.now() } : session
+          ),
+        }));
+      },
+
+      clearAllSessions: () => set({ sessions: [], currentSessionId: null }),
+    }),
+    {
+      name: 'lumina-chat-storage',
+    }
+  )
+);
