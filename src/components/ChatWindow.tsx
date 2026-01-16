@@ -61,7 +61,10 @@ export const ChatWindow = () => {
             <PanelLeftOpen size={18} />
           </button>
         )}
-        <span className="eyebrow">Assistant</span>
+        <div>
+          <p className="eyebrow">Assistant</p>
+          <h2>{currentSession?.title || 'New Chat'}</h2>
+        </div>
       </header>
 
       {!currentSession || currentSession.messages.length === 0 ? (

@@ -147,9 +147,34 @@
     text-align: left;
   }
 
+  .session-copy {
+    display: grid;
+    gap: 0.2rem;
+    flex: 1;
+  }
+
+  .session-copy strong,
+  .session-copy small {
+    font: inherit;
+  }
+
+  .session-copy small {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 0.7rem;
+  }
+
   .session-item.is-active {
     background: rgba(255, 255, 255, 0.1);
     color: #fff;
+  }
+
+  .session-delete {
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .session-item:hover .session-delete {
+    opacity: 1;
   }
 
   .empty-copy {

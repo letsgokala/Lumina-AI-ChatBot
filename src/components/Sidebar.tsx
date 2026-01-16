@@ -1,5 +1,6 @@
 import React from 'react';
-import { Plus, MessageSquare, PanelLeftClose } from 'lucide-react';
+import { Plus, MessageSquare, PanelLeftClose, Trash2 } from 'lucide-react';
+import { format } from 'date-fns';
 import { useChatStore } from '../store/useChatStore';
 
 export const Sidebar = () => {
@@ -10,6 +11,7 @@ export const Sidebar = () => {
     setSidebarOpen,
     createNewSession,
     setCurrentSession,
+    deleteSession,
   } = useChatStore();
 
   return (
@@ -41,7 +43,19 @@ export const Sidebar = () => {
               onClick={() => setCurrentSession(session.id)}
             >
               <MessageSquare size={15} />
-              <span>{session.title}</span>
+              <span className="session-copy">
+                <strong>{session.title}</strong>
+                <small>{format(session.updatedAt, 'MMM d, h:mm a')}</small>
+              </span>
+              <span
+                className="session-delete"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  deleteSession(session.id);
+                }}
+              >
+                <Trash2 size={14} />
+              </span>
             </button>
           ))
         )}
