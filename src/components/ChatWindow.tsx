@@ -17,7 +17,7 @@ export const ChatWindow = () => {
   const [isLoading, setIsLoading] = React.useState(false);
   const currentSession = sessions.find((session) => session.id === currentSessionId);
 
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, attachment?: string) => {
     const sessionId = currentSessionId || createNewSession();
     const nextMessages = [
       ...(sessions.find((session) => session.id === sessionId)?.messages || []),
@@ -26,6 +26,7 @@ export const ChatWindow = () => {
         role: 'user' as const,
         content,
         timestamp: Date.now(),
+        attachment,
       },
     ];
 

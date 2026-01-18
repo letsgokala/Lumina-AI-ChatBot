@@ -258,6 +258,7 @@
   .chat-input-shell {
     display: flex;
     align-items: flex-end;
+    flex-wrap: wrap;
     gap: 0.75rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 1.5rem;
@@ -267,6 +268,7 @@
 
   .chat-input {
     flex: 1;
+    min-width: 14rem;
     border: none;
     background: transparent;
     color: inherit;
@@ -287,5 +289,38 @@
     background: #fff;
     color: #09090b;
     cursor: pointer;
+  }
+
+  .attachment-preview {
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .attachment-preview img,
+  .message-image {
+    width: 6rem;
+    height: 6rem;
+    object-fit: cover;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .message-image {
+    width: min(100%, 16rem);
+    height: auto;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
   }
 }

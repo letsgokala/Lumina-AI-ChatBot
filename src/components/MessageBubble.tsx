@@ -16,6 +16,7 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
       </div>
       <div className="message-copy">
         <p className="message-label">{isAssistant ? 'Lumina' : 'You'}</p>
+        {message.attachment && <img src={message.attachment} className="message-image" alt="Attachment" />}
         <p>{message.content}</p>
       </div>
     </article>
