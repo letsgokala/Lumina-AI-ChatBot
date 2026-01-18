@@ -16,13 +16,19 @@ export async function generateChatResponse(messages: Message[]) {
   }
 
   const client = new GoogleGenAI({ apiKey });
-  const conversation = messages
+  const lastMessage = messages[messages.length - 1];
+  const history = messages.slice(0, -1)
     .map((message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`)
     .join('\n\n');
+  const promptParts = [`${systemInstruction}\n\n${history}`.trim(), lastMessage.content].filter(Boolean);
+
+  if (lastMessage.attachment) {
+    promptParts.push(`[Image attached: ${lastMessage.attachment.slice(0, 32)}...]`);
+  }
 
   const response = await client.models.generateContent({
     model: modelName,
-    contents: `${systemInstruction}\n\n${conversation}`,
+    contents: promptParts.join('\n\n'),
   });
 
   return response.text ?? 'No response generated.';
