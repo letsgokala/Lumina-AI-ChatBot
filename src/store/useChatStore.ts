@@ -10,6 +10,7 @@ interface ChatState {
   createNewSession: () => string;
   setCurrentSession: (id: string) => void;
   addMessage: (sessionId: string, message: Message) => void;
+  updateMessage: (sessionId: string, messageId: string, updates: Partial<Message>) => void;
   deleteSession: (id: string) => void;
   updateSessionTitle: (id: string, title: string) => void;
   clearAllSessions: () => void;
@@ -55,6 +56,22 @@ export const useChatStore = create<ChatState>()(
                     session.messages.length === 0 && message.role === 'user'
                       ? message.content.slice(0, 28) + (message.content.length > 28 ? '...' : '')
                       : session.title,
+                }
+              : session
+          ),
+        }));
+      },
+
+      updateMessage: (sessionId, messageId, updates) => {
+        set((state) => ({
+          sessions: state.sessions.map((session) =>
+            session.id === sessionId
+              ? {
+                  ...session,
+                  messages: session.messages.map((message) =>
+                    message.id === messageId ? { ...message, ...updates } : message
+                  ),
+                  updatedAt: Date.now(),
                 }
               : session
           ),

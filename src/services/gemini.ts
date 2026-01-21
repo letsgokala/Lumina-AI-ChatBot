@@ -33,3 +33,41 @@ export async function generateChatResponse(messages: Message[]) {
 
   return response.text ?? 'No response generated.';
 }
+
+export async function streamChatResponse(
+  messages: Message[],
+  onChunk: (text: string) => void
+) {
+  if (!apiKey) {
+    throw new Error('API key missing');
+  }
+
+  if (messages.length === 0) {
+    throw new Error('No messages to send');
+  }
+
+  const client = new GoogleGenAI({ apiKey });
+  const conversation = messages
+    .map((message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`)
+    .join('\n\n');
+
+  const stream = await client.models.generateContentStream({
+    model: modelName,
+    contents: `${systemInstruction}\n\n${conversation}`,
+  });
+
+  let fullText = '';
+
+  for await (const chunk of stream) {
+    const chunkText = chunk.text ?? '';
+
+    if (!chunkText) {
+      continue;
+    }
+
+    fullText += chunkText;
+    onChunk(fullText);
+  }
+
+  return fullText || 'No response generated.';
+}
