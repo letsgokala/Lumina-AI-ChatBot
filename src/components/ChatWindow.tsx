@@ -3,7 +3,7 @@ import { PanelLeftOpen, Sparkles } from 'lucide-react';
 import { useChatStore } from '../store/useChatStore';
 import { ChatInput } from './ChatInput';
 import { MessageBubble } from './MessageBubble';
-import { generateChatResponse } from '../services/gemini';
+import { streamChatResponse } from '../services/gemini';
 
 export const ChatWindow = () => {
   const {
@@ -13,6 +13,7 @@ export const ChatWindow = () => {
     setSidebarOpen,
     createNewSession,
     addMessage,
+    updateMessage,
   } = useChatStore();
   const [isLoading, setIsLoading] = React.useState(false);
   const currentSession = sessions.find((session) => session.id === currentSessionId);
@@ -31,23 +32,29 @@ export const ChatWindow = () => {
     ];
 
     addMessage(sessionId, nextMessages[nextMessages.length - 1]);
-    setIsLoading(true);
+    const assistantMessageId = crypto.randomUUID();
+    addMessage(sessionId, {
+      id: assistantMessageId,
+      role: 'assistant',
+      content: '',
+      timestamp: Date.now(),
+    });
 
     try {
-      const assistantReply = await generateChatResponse(nextMessages);
-      addMessage(sessionId, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
+      setIsLoading(true);
+      const assistantReply = await streamChatResponse(nextMessages, (partialContent) => {
+        updateMessage(sessionId, assistantMessageId, {
+          content: partialContent,
+        });
+      });
+
+      updateMessage(sessionId, assistantMessageId, {
         content: assistantReply,
-        timestamp: Date.now(),
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to generate a response.';
-      addMessage(sessionId, {
-        id: crypto.randomUUID(),
-        role: 'assistant',
+      updateMessage(sessionId, assistantMessageId, {
         content: `Error: ${message}`,
-        timestamp: Date.now(),
       });
     } finally {
       setIsLoading(false);

@@ -248,6 +248,10 @@
     margin: 0;
   }
 
+  .message-markdown p {
+    margin: 0;
+  }
+
   .message-label {
     text-transform: uppercase;
     letter-spacing: 0.2em;
