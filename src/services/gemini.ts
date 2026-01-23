@@ -1,65 +1,111 @@
-import { GoogleGenAI } from '@google/genai';
-import { Message } from '../types/chat';
+import { Content, GoogleGenAI, Part } from "@google/genai";
+import { Message } from "../types/chat";
 
 const apiKey = process.env.GEMINI_API_KEY;
-const modelName = 'gemini-3-flash-preview';
+const modelName = "gemini-3-flash-preview";
 const systemInstruction =
-  'You are Lumina, a premium AI assistant. Keep answers clear, helpful, and ready for markdown rendering.';
+  "You are Lumina, a premium AI assistant. Support markdown and analyze images if provided.";
+
+function getInlineDataFromAttachment(attachment: string): Part | null {
+  const match = attachment.match(/^data:(.+?);base64,(.+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, mimeType, data] = match;
+
+  return {
+    inlineData: {
+      mimeType,
+      data,
+    },
+  };
+}
+
+function messageToParts(message: Message): Part[] {
+  const parts: Part[] = [];
+
+  if (message.content) {
+    parts.push({ text: message.content });
+  }
+
+  if (message.attachment) {
+    const inlineDataPart = getInlineDataFromAttachment(message.attachment);
+    if (inlineDataPart) {
+      parts.push(inlineDataPart);
+    }
+  }
+
+  if (parts.length === 0) {
+    parts.push({ text: "" });
+  }
+
+  return parts;
+}
+
+function messageToContent(message: Message): Content {
+  return {
+    role: message.role === "assistant" ? "model" : "user",
+    parts: messageToParts(message),
+  };
+}
 
 export async function generateChatResponse(messages: Message[]) {
-  if (!apiKey) {
-    throw new Error('API key missing');
-  }
+  if (!apiKey) throw new Error("API key missing");
+  if (messages.length === 0) throw new Error("No messages to send");
 
-  if (messages.length === 0) {
-    throw new Error('No messages to send');
-  }
+  const genAI = new GoogleGenAI({ apiKey });
+  const lastMsg = messages[messages.length - 1];
+  const history = messages.slice(0, -1).map(messageToContent);
 
-  const client = new GoogleGenAI({ apiKey });
-  const lastMessage = messages[messages.length - 1];
-  const history = messages.slice(0, -1)
-    .map((message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`)
-    .join('\n\n');
-  const promptParts = [`${systemInstruction}\n\n${history}`.trim(), lastMessage.content].filter(Boolean);
-
-  if (lastMessage.attachment) {
-    promptParts.push(`[Image attached: ${lastMessage.attachment.slice(0, 32)}...]`);
-  }
-
-  const response = await client.models.generateContent({
+  const chat = genAI.chats.create({
     model: modelName,
-    contents: promptParts.join('\n\n'),
+    config: {
+      systemInstruction,
+    },
+    history,
   });
 
-  return response.text ?? 'No response generated.';
+  const response = await chat.sendMessage({
+    message: messageToParts(lastMsg),
+  });
+
+  return response.text ?? "No response generated.";
 }
 
 export async function streamChatResponse(
   messages: Message[],
-  onChunk: (text: string) => void
+  onChunk: (text: string) => void,
+  abortSignal?: AbortSignal
 ) {
-  if (!apiKey) {
-    throw new Error('API key missing');
-  }
+  if (!apiKey) throw new Error("API key missing");
+  if (messages.length === 0) throw new Error("No messages to send");
 
-  if (messages.length === 0) {
-    throw new Error('No messages to send');
-  }
+  const genAI = new GoogleGenAI({ apiKey });
+  const lastMsg = messages[messages.length - 1];
+  const history = messages.slice(0, -1).map(messageToContent);
 
-  const client = new GoogleGenAI({ apiKey });
-  const conversation = messages
-    .map((message) => `${message.role === 'assistant' ? 'Assistant' : 'User'}: ${message.content}`)
-    .join('\n\n');
-
-  const stream = await client.models.generateContentStream({
+  const chat = genAI.chats.create({
     model: modelName,
-    contents: `${systemInstruction}\n\n${conversation}`,
+    config: {
+      systemInstruction,
+      abortSignal,
+    },
+    history,
   });
 
-  let fullText = '';
+  const stream = await chat.sendMessageStream({
+    message: messageToParts(lastMsg),
+    config: {
+      abortSignal,
+    },
+  });
+
+  let fullText = "";
 
   for await (const chunk of stream) {
-    const chunkText = chunk.text ?? '';
+    const chunkText = chunk.text ?? "";
 
     if (!chunkText) {
       continue;
@@ -69,5 +115,10 @@ export async function streamChatResponse(
     onChunk(fullText);
   }
 
-  return fullText || 'No response generated.';
+  if (!fullText) {
+    fullText = "No response generated.";
+    onChunk(fullText);
+  }
+
+  return fullText;
 }

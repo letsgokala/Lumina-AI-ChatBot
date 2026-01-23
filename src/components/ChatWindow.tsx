@@ -1,9 +1,12 @@
 import React from 'react';
-import { PanelLeftOpen, Sparkles } from 'lucide-react';
+import { useRef, useEffect } from 'react';
 import { useChatStore } from '../store/useChatStore';
+import { Message } from '../types/chat';
 import { ChatInput } from './ChatInput';
 import { MessageBubble } from './MessageBubble';
 import { streamChatResponse } from '../services/gemini';
+import { PanelLeftOpen, Sparkles } from 'lucide-react';
+import { motion } from 'motion/react';
 
 export const ChatWindow = () => {
   const {
@@ -15,8 +18,67 @@ export const ChatWindow = () => {
     addMessage,
     updateMessage,
   } = useChatStore();
-  const [isLoading, setIsLoading] = React.useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [isStreaming, setIsStreaming] = React.useState(false);
   const currentSession = sessions.find((session) => session.id === currentSessionId);
+
+  const handleScroll = () => {
+    if (!scrollRef.current) {
+      return;
+    }
+
+    const { scrollTop, clientHeight, scrollHeight } = scrollRef.current;
+    shouldAutoScrollRef.current = scrollHeight - (scrollTop + clientHeight) < 96;
+  };
+
+  const handleStopGenerating = () => {
+    abortControllerRef.current?.abort();
+  };
+
+  const streamAssistantResponse = async (
+    sessionId: string,
+    messages: Message[],
+    assistantMessageId: string
+  ) => {
+    setIsStreaming(true);
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+    let latestStreamedContent = '';
+
+    try {
+      const assistantReply = await streamChatResponse(messages, (partialContent) => {
+        latestStreamedContent = partialContent;
+        updateMessage(sessionId, assistantMessageId, {
+          content: partialContent,
+        });
+      }, abortController.signal);
+
+      updateMessage(sessionId, assistantMessageId, {
+        content: assistantReply,
+      });
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        if (!latestStreamedContent) {
+          updateMessage(sessionId, assistantMessageId, {
+            content: '_Generation stopped._',
+          });
+        }
+        return;
+      }
+
+      const message = error instanceof Error ? error.message : 'Unable to generate a response.';
+      updateMessage(sessionId, assistantMessageId, {
+        content: `Error: ${message}`,
+      });
+    } finally {
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
+      setIsStreaming(false);
+    }
+  };
 
   const handleSend = async (content: string, attachment?: string) => {
     const sessionId = currentSessionId || createNewSession();
@@ -40,60 +102,77 @@ export const ChatWindow = () => {
       timestamp: Date.now(),
     });
 
-    try {
-      setIsLoading(true);
-      const assistantReply = await streamChatResponse(nextMessages, (partialContent) => {
-        updateMessage(sessionId, assistantMessageId, {
-          content: partialContent,
-        });
-      });
-
-      updateMessage(sessionId, assistantMessageId, {
-        content: assistantReply,
-      });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unable to generate a response.';
-      updateMessage(sessionId, assistantMessageId, {
-        content: `Error: ${message}`,
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    await streamAssistantResponse(sessionId, nextMessages, assistantMessageId);
   };
 
+  useEffect(() => {
+    if (scrollRef.current && shouldAutoScrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [currentSession?.messages, isStreaming]);
+
   return (
-    <section className="workspace-main">
-      <header className="chat-header">
-        {!isSidebarOpen && (
-          <button type="button" className="icon-button" onClick={() => setSidebarOpen(true)}>
-            <PanelLeftOpen size={18} />
-          </button>
-        )}
-        <div>
-          <p className="eyebrow">Assistant</p>
-          <h2>{currentSession?.title || 'New Chat'}</h2>
+    <div className="flex-1 flex flex-col h-screen bg-brand-bg relative overflow-hidden">
+      <header className="h-16 border-b border-brand-border flex items-center px-6 justify-between bg-brand-bg/50 backdrop-blur-md z-10">
+        <div className="flex items-center gap-4">
+          {!isSidebarOpen && (
+            <button 
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+            >
+              <PanelLeftOpen size={18} />
+            </button>
+          )}
+          <h2 className="text-sm font-medium opacity-80">
+            {currentSession?.title || "New Chat"}
+          </h2>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-medium tracking-wider uppercase opacity-60">
+            Gemini 3 Flash
+          </div>
         </div>
       </header>
 
-      {!currentSession || currentSession.messages.length === 0 ? (
-        <div className="chat-empty">
-          <div className="chat-empty-icon">
-            <Sparkles size={24} />
+      <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto">
+        {!currentSession || currentSession.messages.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center p-8 text-center">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mb-6 border border-white/10"
+            >
+              <Sparkles size={32} className="text-white" />
+            </motion.div>
+            <motion.h3 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="text-2xl font-semibold tracking-tight mb-2"
+            >
+              How can I help you today?
+            </motion.h3>
+            <motion.p 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-brand-muted max-w-md text-sm leading-relaxed"
+            >
+              Lumina is your premium AI workspace. Ask questions, generate content, or explore ideas with the power of Gemini.
+            </motion.p>
           </div>
-          <h1>Start a conversation</h1>
-          <p className="subtitle">
-            Session controls are in place. Next up is wiring the composer and message list.
-          </p>
-        </div>
-      ) : (
-        <div className="message-feed">
-          {currentSession.messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
-          ))}
-        </div>
-      )}
+        ) : (
+          <div className="max-w-4xl mx-auto w-full py-4">
+            {currentSession.messages.map((message) => (
+              <MessageBubble key={message.id} message={message} />
+            ))}
+          </div>
+        )}
+      </div>
 
-      <ChatInput onSend={handleSend} isLoading={isLoading} />
-    </section>
+      <div className="bg-linear-to-t from-brand-bg via-brand-bg to-transparent pt-12">
+        <ChatInput onSend={handleSend} onStop={handleStopGenerating} isLoading={isStreaming} />
+      </div>
+    </div>
   );
 };

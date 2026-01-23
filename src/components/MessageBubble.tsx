@@ -1,7 +1,8 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Sparkles, User } from 'lucide-react';
 import { Message } from '../types/chat';
+import { cn } from '../lib/utils';
+import { User, Sparkles } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
@@ -9,19 +10,30 @@ interface MessageBubbleProps {
 
 export const MessageBubble = ({ message }: MessageBubbleProps) => {
   const isAssistant = message.role === 'assistant';
+  const isStreamingPlaceholder = isAssistant && !message.content && !message.attachment;
 
   return (
-    <article className={isAssistant ? 'message-row message-row-assistant' : 'message-row'}>
-      <div className={isAssistant ? 'message-icon assistant' : 'message-icon user'}>
+    <div className={cn("flex gap-4 p-6 transition-colors", isAssistant ? "bg-white/2" : "bg-transparent")}>
+      <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", isAssistant ? "bg-white/10" : "bg-white text-black")}>
         {isAssistant ? <Sparkles size={15} /> : <User size={15} />}
       </div>
-      <div className="message-copy">
-        <p className="message-label">{isAssistant ? 'Lumina' : 'You'}</p>
-        {message.attachment && <img src={message.attachment} className="message-image" alt="Attachment" />}
-        <div className="message-markdown">
-          <ReactMarkdown>{message.content}</ReactMarkdown>
+      <div className="flex-1 min-w-0 space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider opacity-40">{isAssistant ? "Lumina AI" : "You"}</p>
+        {message.attachment && (
+          <img src={message.attachment} className="max-w-sm rounded-lg border border-white/10 mb-2" alt="Upload" />
+        )}
+        <div className="prose prose-invert prose-sm max-w-none">
+          {isStreamingPlaceholder ? (
+            <div className="flex items-center gap-1 py-2">
+              <span className="h-2 w-2 rounded-full bg-white/40 animate-bounce [animation-delay:-0.3s]" />
+              <span className="h-2 w-2 rounded-full bg-white/40 animate-bounce [animation-delay:-0.15s]" />
+              <span className="h-2 w-2 rounded-full bg-white/40 animate-bounce" />
+            </div>
+          ) : (
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          )}
         </div>
       </div>
-    </article>
+    </div>
   );
 };

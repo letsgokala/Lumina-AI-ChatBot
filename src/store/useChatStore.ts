@@ -46,34 +46,33 @@ export const useChatStore = create<ChatState>()(
 
       addMessage: (sessionId, message) => {
         set((state) => ({
-          sessions: state.sessions.map((session) =>
-            session.id === sessionId
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
               ? {
-                  ...session,
-                  messages: [...session.messages, message],
+                  ...s,
+                  messages: [...s.messages, message],
                   updatedAt: Date.now(),
-                  title:
-                    session.messages.length === 0 && message.role === 'user'
-                      ? message.content.slice(0, 28) + (message.content.length > 28 ? '...' : '')
-                      : session.title,
+                  title: s.messages.length === 0 && message.role === 'user'
+                    ? message.content.slice(0, 30) + (message.content.length > 30 ? '...' : '')
+                    : s.title
                 }
-              : session
+              : s
           ),
         }));
       },
 
       updateMessage: (sessionId, messageId, updates) => {
         set((state) => ({
-          sessions: state.sessions.map((session) =>
-            session.id === sessionId
+          sessions: state.sessions.map((s) =>
+            s.id === sessionId
               ? {
-                  ...session,
-                  messages: session.messages.map((message) =>
+                  ...s,
+                  messages: s.messages.map((message) =>
                     message.id === messageId ? { ...message, ...updates } : message
                   ),
                   updatedAt: Date.now(),
                 }
-              : session
+              : s
           ),
         }));
       },
