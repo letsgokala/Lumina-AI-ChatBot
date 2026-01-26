@@ -5,7 +5,7 @@ import { Message } from '../types/chat';
 import { ChatInput } from './ChatInput';
 import { MessageBubble } from './MessageBubble';
 import { streamChatResponse } from '../services/gemini';
-import { PanelLeftOpen, Sparkles } from 'lucide-react';
+import { PanelLeftOpen, Sparkles, RotateCcw } from 'lucide-react';
 import { motion } from 'motion/react';
 
 export const ChatWindow = () => {
@@ -23,6 +23,14 @@ export const ChatWindow = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [isStreaming, setIsStreaming] = React.useState(false);
   const currentSession = sessions.find((session) => session.id === currentSessionId);
+  const lastUserMessageIndex = currentSession
+    ? [...currentSession.messages].reverse().findIndex((message) => message.role === 'user')
+    : -1;
+  const resolvedLastUserMessageIndex =
+    lastUserMessageIndex >= 0 && currentSession
+      ? currentSession.messages.length - 1 - lastUserMessageIndex
+      : -1;
+  const canRegenerate = !isStreaming && !!currentSession && resolvedLastUserMessageIndex >= 0;
 
   const handleScroll = () => {
     if (!scrollRef.current) {
@@ -105,6 +113,36 @@ export const ChatWindow = () => {
     await streamAssistantResponse(sessionId, nextMessages, assistantMessageId);
   };
 
+  const handleRegenerate = async () => {
+    if (!currentSession || resolvedLastUserMessageIndex < 0) {
+      return;
+    }
+
+    const existingAssistantMessage = currentSession.messages.find(
+      (message, index) => index > resolvedLastUserMessageIndex && message.role === 'assistant'
+    );
+
+    const assistantMessageId = existingAssistantMessage?.id ?? crypto.randomUUID();
+    const messagesToReplay = currentSession.messages.slice(0, resolvedLastUserMessageIndex + 1);
+
+    if (existingAssistantMessage) {
+      updateMessage(currentSession.id, assistantMessageId, {
+        content: '',
+        timestamp: Date.now(),
+      });
+    } else {
+      addMessage(currentSession.id, {
+        id: assistantMessageId,
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+      });
+    }
+
+    shouldAutoScrollRef.current = true;
+    await streamAssistantResponse(currentSession.id, messagesToReplay, assistantMessageId);
+  };
+
   useEffect(() => {
     if (scrollRef.current && shouldAutoScrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -128,6 +166,15 @@ export const ChatWindow = () => {
           </h2>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleRegenerate}
+            disabled={!canRegenerate}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-[10px] font-medium tracking-wider uppercase opacity-70 transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/10"
+          >
+            <RotateCcw size={12} />
+            <span>Regenerate</span>
+          </button>
           <div className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-[10px] font-medium tracking-wider uppercase opacity-60">
             Gemini 3 Flash
           </div>
