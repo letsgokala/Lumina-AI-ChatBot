@@ -1,6 +1,6 @@
 import React from 'react';
 import { useChatStore } from '../store/useChatStore';
-import { Plus, MessageSquare, Trash2, PanelLeftClose } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, PanelLeftClose, Pencil, Check, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 
@@ -12,8 +12,28 @@ export const Sidebar = () => {
     setSidebarOpen,
     createNewSession,
     setCurrentSession,
+    updateSessionTitle,
     deleteSession,
+    clearAllSessions,
   } = useChatStore();
+  const [editingSessionId, setEditingSessionId] = React.useState<string | null>(null);
+  const [titleDraft, setTitleDraft] = React.useState('');
+
+  const startEditingSession = (sessionId: string, title: string) => {
+    setEditingSessionId(sessionId);
+    setTitleDraft(title);
+  };
+
+  const saveSessionTitle = (sessionId: string) => {
+    const nextTitle = titleDraft.trim() || 'New Chat';
+    updateSessionTitle(sessionId, nextTitle);
+    setEditingSessionId(null);
+  };
+
+  const cancelEditingSession = () => {
+    setEditingSessionId(null);
+    setTitleDraft('');
+  };
 
   return (
     <div 
@@ -52,24 +72,92 @@ export const Sidebar = () => {
                 ? "bg-white/10 text-white" 
                 : "text-brand-muted hover:bg-white/5 hover:text-white"
             )}
-            onClick={() => setCurrentSession(session.id)}
+            onClick={() => {
+              if (!editingSessionId) {
+                setCurrentSession(session.id);
+              }
+            }}
           >
             <MessageSquare size={16} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{session.title}</p>
+              {editingSessionId === session.id ? (
+                <input
+                  autoFocus
+                  value={titleDraft}
+                  onChange={(e) => setTitleDraft(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      saveSessionTitle(session.id);
+                    }
+
+                    if (e.key === 'Escape') {
+                      e.preventDefault();
+                      cancelEditingSession();
+                    }
+                  }}
+                  onBlur={() => saveSessionTitle(session.id)}
+                  className="w-full bg-white/10 rounded-md px-2 py-1 text-sm font-medium outline-none ring-1 ring-white/10"
+                />
+              ) : (
+                <p className="text-sm font-medium truncate">{session.title}</p>
+              )}
               <p className="text-[10px] opacity-50">
                 {format(session.updatedAt, 'MMM d, h:mm a')}
               </p>
             </div>
-            <button 
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteSession(session.id);
-              }}
-              className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-md transition-all"
-            >
-              <Trash2 size={14} />
-            </button>
+            <div className="flex items-center">
+              {editingSessionId === session.id ? (
+                <>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      saveSessionTitle(session.id);
+                    }}
+                    className="p-1.5 hover:bg-white/10 rounded-md transition-all"
+                  >
+                    <Check size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      cancelEditingSession();
+                    }}
+                    className="p-1.5 hover:bg-white/10 rounded-md transition-all"
+                  >
+                    <X size={14} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEditingSession(session.id, session.title);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-white/10 rounded-md transition-all"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSession(session.id);
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 hover:text-red-400 rounded-md transition-all"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         ))}
       </div>
