@@ -1,12 +1,75 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message } from '../types/chat';
 import { cn } from '../lib/utils';
-import { User, Sparkles } from 'lucide-react';
+import { User, Sparkles, Copy, Check } from 'lucide-react';
 
 interface MessageBubbleProps {
   message: Message;
 }
+
+interface CodeBlockProps {
+  className?: string;
+  children?: React.ReactNode;
+}
+
+const CodeBlock = ({ className, children }: CodeBlockProps) => {
+  const [copied, setCopied] = React.useState(false);
+  const rawCode = React.Children.toArray(children).join('');
+  const code = rawCode.replace(/\n$/, '');
+  const language = className?.replace('language-', '') || 'text';
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return (
+    <div className="not-prose my-4 overflow-hidden rounded-2xl border border-white/10 bg-black/40">
+      <div className="flex items-center justify-between border-b border-white/10 bg-white/5 px-4 py-2">
+        <span className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/45">
+          {language}
+        </span>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-white/70 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          {copied ? <Check size={13} /> : <Copy size={13} />}
+          <span>{copied ? 'Copied' : 'Copy'}</span>
+        </button>
+      </div>
+      <div className="overflow-x-auto p-4 text-[13px] leading-6 text-white/90">
+        <SyntaxHighlighter
+          language={language}
+          style={oneDark}
+          customStyle={{
+            margin: 0,
+            padding: 0,
+            background: 'transparent',
+            fontSize: '13px',
+            lineHeight: '1.65',
+          }}
+          codeTagProps={{
+            style: {
+              fontFamily: 'inherit',
+            },
+          }}
+          wrapLongLines
+        >
+          {code}
+        </SyntaxHighlighter>
+      </div>
+    </div>
+  );
+};
 
 export const MessageBubble = ({ message }: MessageBubbleProps) => {
   const isAssistant = message.role === 'assistant';
@@ -30,7 +93,35 @@ export const MessageBubble = ({ message }: MessageBubbleProps) => {
               <span className="h-2 w-2 rounded-full bg-white/40 animate-bounce" />
             </div>
           ) : (
-            <ReactMarkdown>{message.content}</ReactMarkdown>
+            <ReactMarkdown
+              components={{
+                code({ className, children, ...props }) {
+                  const isBlock = className?.startsWith('language-');
+
+                  if (isBlock) {
+                    return (
+                      <CodeBlock className={className}>
+                        {children}
+                      </CodeBlock>
+                    );
+                  }
+
+                  return (
+                    <code
+                      {...props}
+                      className="rounded-md border border-white/10 bg-white/8 px-1.5 py-0.5 font-mono text-[0.9em] text-white"
+                    >
+                      {children}
+                    </code>
+                  );
+                },
+                pre({ children }) {
+                  return <>{children}</>;
+                },
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
           )}
         </div>
       </div>
