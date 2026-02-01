@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Paperclip, Mic, ArrowUp, X, MicOff, Square } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -61,6 +61,16 @@ export const ChatInput = ({ onSend, isLoading, onStop }: ChatInputProps) => {
       handleSend();
     }
   };
+
+  useEffect(() => {
+    if (!textareaRef.current) {
+      return;
+    }
+
+    textareaRef.current.style.height = '0px';
+    const nextHeight = Math.min(textareaRef.current.scrollHeight, 200);
+    textareaRef.current.style.height = `${nextHeight}px`;
+  }, [content]);
 
   return (
     <div className="p-4 max-w-4xl mx-auto w-full">
