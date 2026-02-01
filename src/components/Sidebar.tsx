@@ -1,6 +1,6 @@
 import React from 'react';
 import { useChatStore } from '../store/useChatStore';
-import { Plus, MessageSquare, Trash2, PanelLeftClose, Pencil, Check, X } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, PanelLeftClose, Pencil, Check, X, Search } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 
@@ -18,6 +18,7 @@ export const Sidebar = () => {
   } = useChatStore();
   const [editingSessionId, setEditingSessionId] = React.useState<string | null>(null);
   const [titleDraft, setTitleDraft] = React.useState('');
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const startEditingSession = (sessionId: string, title: string) => {
     setEditingSessionId(sessionId);
@@ -34,6 +35,22 @@ export const Sidebar = () => {
     setEditingSessionId(null);
     setTitleDraft('');
   };
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredSessions = sessions.filter((session) => {
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    const messageMatch = session.messages.some((message) =>
+      message.content.toLowerCase().includes(normalizedQuery)
+    );
+
+    return (
+      session.title.toLowerCase().includes(normalizedQuery) ||
+      messageMatch
+    );
+  });
 
   return (
     <div 
@@ -62,8 +79,25 @@ export const Sidebar = () => {
         </button>
       </div>
 
+      <div className="px-4 mb-3">
+        <div className="flex items-center gap-2 rounded-xl border border-white/8 bg-white/4 px-3 py-2 focus-within:border-white/15">
+          <Search size={15} className="text-brand-muted" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search chats"
+            className="w-full bg-transparent text-sm text-white placeholder:text-brand-muted outline-none"
+          />
+        </div>
+      </div>
+
       <div className="flex-1 overflow-y-auto px-2 space-y-1">
-        {sessions.map((session) => (
+        {filteredSessions.length === 0 ? (
+          <div className="px-4 py-6 text-center text-xs text-brand-muted">
+            No chats match "{searchQuery}".
+          </div>
+        ) : filteredSessions.map((session) => (
           <div 
             key={session.id}
             className={cn(
