@@ -12,16 +12,20 @@ export const ChatInput = ({ onSend, isLoading, onStop }: ChatInputProps) => {
   const [content, setContent] = useState('');
   const [attachment, setAttachment] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  const loadAttachment = (file?: File | null) => {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => setAttachment(reader.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    loadAttachment(e.target.files?.[0]);
   };
 
   const toggleListening = () => {
@@ -82,7 +86,32 @@ export const ChatInput = ({ onSend, isLoading, onStop }: ChatInputProps) => {
           </button>
         </div>
       )}
-      <div className="relative bg-brand-surface border border-brand-border rounded-2xl p-2 shadow-2xl focus-within:border-white/20 transition-all">
+      <div
+        onDragOver={(event) => {
+          event.preventDefault();
+          setIsDraggingFile(true);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setIsDraggingFile(false);
+          }
+        }}
+        onDrop={(event) => {
+          event.preventDefault();
+          setIsDraggingFile(false);
+          const imageFile = Array.from(event.dataTransfer.files).find((file) => file.type.startsWith('image/'));
+          loadAttachment(imageFile);
+        }}
+        className={cn(
+          "relative bg-brand-surface border border-brand-border rounded-2xl p-2 shadow-2xl focus-within:border-white/20 transition-all",
+          isDraggingFile && "border-sky-400/70 bg-sky-500/8"
+        )}
+      >
+        {isDraggingFile && (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl border border-dashed border-sky-400/50 bg-sky-500/10 text-sm font-medium text-sky-200 backdrop-blur-sm">
+            Drop an image to attach it
+          </div>
+        )}
         <textarea
           ref={textareaRef}
           value={content}
