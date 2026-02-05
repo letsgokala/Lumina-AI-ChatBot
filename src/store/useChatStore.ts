@@ -11,6 +11,7 @@ interface ChatState {
   setCurrentSession: (id: string) => void;
   addMessage: (sessionId: string, message: Message) => void;
   updateMessage: (sessionId: string, messageId: string, updates: Partial<Message>) => void;
+  togglePinnedSession: (id: string) => void;
   deleteSession: (id: string) => void;
   updateSessionTitle: (id: string, title: string) => void;
   clearAllSessions: () => void;
@@ -30,6 +31,7 @@ export const useChatStore = create<ChatState>()(
           id: crypto.randomUUID(),
           title: 'New Chat',
           messages: [],
+          pinned: false,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -70,6 +72,20 @@ export const useChatStore = create<ChatState>()(
                   messages: s.messages.map((message) =>
                     message.id === messageId ? { ...message, ...updates } : message
                   ),
+                  updatedAt: Date.now(),
+                }
+              : s
+          ),
+        }));
+      },
+
+      togglePinnedSession: (id) => {
+        set((state) => ({
+          sessions: state.sessions.map((s) =>
+            s.id === id
+              ? {
+                  ...s,
+                  pinned: !s.pinned,
                   updatedAt: Date.now(),
                 }
               : s

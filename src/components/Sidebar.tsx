@@ -1,6 +1,6 @@
 import React from 'react';
 import { useChatStore } from '../store/useChatStore';
-import { Plus, MessageSquare, Trash2, PanelLeftClose, Pencil, Check, X, Search } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, PanelLeftClose, Pencil, Check, X, Search, Pin, PinOff } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { format } from 'date-fns';
 
@@ -10,9 +10,10 @@ export const Sidebar = () => {
     currentSessionId,
     isSidebarOpen,
     setSidebarOpen,
-    createNewSession,
+    createNewSession, 
     setCurrentSession,
     updateSessionTitle,
+    togglePinnedSession,
     deleteSession,
     clearAllSessions,
   } = useChatStore();
@@ -50,6 +51,13 @@ export const Sidebar = () => {
       session.title.toLowerCase().includes(normalizedQuery) ||
       messageMatch
     );
+  });
+  const sortedSessions = [...filteredSessions].sort((a, b) => {
+    if (!!a.pinned !== !!b.pinned) {
+      return a.pinned ? -1 : 1;
+    }
+
+    return b.updatedAt - a.updatedAt;
   });
 
   return (
@@ -97,7 +105,7 @@ export const Sidebar = () => {
           <div className="px-4 py-6 text-center text-xs text-brand-muted">
             No chats match "{searchQuery}".
           </div>
-        ) : filteredSessions.map((session) => (
+        ) : sortedSessions.map((session) => (
           <div 
             key={session.id}
             className={cn(
@@ -169,6 +177,21 @@ export const Sidebar = () => {
                 </>
               ) : (
                 <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      togglePinnedSession(session.id);
+                    }}
+                    className={cn(
+                      "p-1.5 rounded-md transition-all",
+                      session.pinned
+                        ? "opacity-100 text-amber-300 bg-amber-500/10 hover:bg-amber-500/20"
+                        : "opacity-0 group-hover:opacity-100 hover:bg-white/10"
+                    )}
+                  >
+                    {session.pinned ? <PinOff size={14} /> : <Pin size={14} />}
+                  </button>
                   <button
                     type="button"
                     onClick={(e) => {
