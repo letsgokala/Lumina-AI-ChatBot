@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { ChatSession, Message } from '../types/chat';
 
-interface ChatState {
+export interface ChatState {
   sessions: ChatSession[];
   currentSessionId: string | null;
   isSidebarOpen: boolean;
