@@ -1,7 +1,5 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { Message } from '../types/chat';
 import { cn } from '../lib/utils';
 import { User, Sparkles, Copy, Check } from 'lucide-react';
@@ -15,11 +13,36 @@ interface CodeBlockProps {
   children?: React.ReactNode;
 }
 
+type SyntaxHighlighterComponent = typeof import('react-syntax-highlighter').Prism;
+type SyntaxTheme = typeof import('react-syntax-highlighter/dist/esm/styles/prism').oneDark;
+
 const CodeBlock = ({ className, children }: CodeBlockProps) => {
   const [copied, setCopied] = React.useState(false);
+  const [Highlighter, setHighlighter] = React.useState<SyntaxHighlighterComponent | null>(null);
+  const [theme, setTheme] = React.useState<SyntaxTheme | null>(null);
   const rawCode = React.Children.toArray(children).join('');
   const code = rawCode.replace(/\n$/, '');
   const language = className?.replace('language-', '') || 'text';
+
+  React.useEffect(() => {
+    let isMounted = true;
+
+    Promise.all([
+      import('react-syntax-highlighter'),
+      import('react-syntax-highlighter/dist/esm/styles/prism'),
+    ]).then(([syntaxModule, themeModule]) => {
+      if (!isMounted) {
+        return;
+      }
+
+      setHighlighter(() => syntaxModule.Prism);
+      setTheme(themeModule.oneDark);
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleCopy = async () => {
     try {
@@ -47,25 +70,31 @@ const CodeBlock = ({ className, children }: CodeBlockProps) => {
         </button>
       </div>
       <div className="overflow-x-auto p-4 text-[13px] leading-6 text-white/90">
-        <SyntaxHighlighter
-          language={language}
-          style={oneDark}
-          customStyle={{
-            margin: 0,
-            padding: 0,
-            background: 'transparent',
-            fontSize: '13px',
-            lineHeight: '1.65',
-          }}
-          codeTagProps={{
-            style: {
-              fontFamily: 'inherit',
-            },
-          }}
-          wrapLongLines
-        >
-          {code}
-        </SyntaxHighlighter>
+        {Highlighter && theme ? (
+          <Highlighter
+            language={language}
+            style={theme}
+            customStyle={{
+              margin: 0,
+              padding: 0,
+              background: 'transparent',
+              fontSize: '13px',
+              lineHeight: '1.65',
+            }}
+            codeTagProps={{
+              style: {
+                fontFamily: 'inherit',
+              },
+            }}
+            wrapLongLines
+          >
+            {code}
+          </Highlighter>
+        ) : (
+          <pre className="m-0 whitespace-pre-wrap break-words font-mono text-[13px] leading-6 text-white/90">
+            <code>{code}</code>
+          </pre>
+        )}
       </div>
     </div>
   );
